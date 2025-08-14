@@ -1,0 +1,53 @@
+name: Deploy Video Caption Editor
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22'
+          cache: 'npm'
+      
+      - name: Clean and install dependencies
+        run: |
+          rm -rf node_modules package-lock.json
+          npm cache clean --force
+          npm install
+      
+      - name: Create environment file (if needed)
+        run: |
+          touch .env
+          echo "${{ secrets.PROD_ENV }}" > .env
+      
+      - name: Build React project
+        run: npm run build
+      
+      - name: Deploy to Nginx directory
+        run: |
+          sudo rm -rf /var/www/html/video-caption-editor/*
+          sudo mkdir -p /var/www/html/video-caption-editor
+          sudo cp -r ./dist/* /var/www/html/video-caption-editor/ || sudo cp -r ./build/* /var/www/html/video-caption-editor/
+          sudo chown -R www-data:www-data /var/www/html/video-caption-editor
+          sudo chmod -R 755 /var/www/html/video-caption-editor
+      
+      - name: Reload Nginx
+        run: sudo systemctl reload nginx
+      
+      - name: Verify deployment
+        run: |
+          echo "✅ Video Caption Editor deployed successfully!"
+          echo "📁 Files deployed:"
+          ls -la /var/www/html/video-caption-editor/
+          echo "🌐 Access at: http://video.exam.org"
